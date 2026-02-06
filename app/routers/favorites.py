@@ -4,8 +4,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.depends import get_async_db
 from app.models.favorites import Favorite as FavoriteModel
+from app.models.users import User as UserModel
 
 from app.schemas.favorites import Favorite as FavoriteSchema, FavoriteList
+from app.auth import get_current_user
 
 
 router = APIRouter(
@@ -18,18 +20,26 @@ router = APIRouter(
 async def get_favorites(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
+    current_user: UserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_db),
 ) -> FavoriteList:
     """
       Returns a paginated list of favorite books with detailed information
       """
 
-    #Get total count of selected books and fetch the current page from the database
-    total = await db.scalar(select(func.count()).select_from(FavoriteModel))
+    # Count total number of books for this user
+    total = await db.scalar(
+        select(func.count())
+        .select_from(FavoriteModel)
+        .where(FavoriteModel.user_id == current_user.id)
+    )
     offset = (page - 1) * page_size
 
     result = await db.execute(
-        select(FavoriteModel).limit(page_size).offset(offset)
+        select(FavoriteModel)
+        .where(FavoriteModel.user_id == current_user.id)
+        .limit(page_size)
+        .offset(offset)
     )
     favorites = result.scalars().all()
 
@@ -46,6 +56,7 @@ async def get_favorites(
 async def add_to_favorite(
     olid_id: str,
     request: Request,
+    current_user: UserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_db),
 ) -> FavoriteSchema:
     """
@@ -66,7 +77,10 @@ async def add_to_favorite(
 
     # Check if the book is already in favorites
     exists = await db.scalar(
-        select(FavoriteModel).where(FavoriteModel.work_olid == olid_id)
+        select(FavoriteModel).where(
+            FavoriteModel.work_olid == olid_id,
+            FavoriteModel.user_id == current_user.id
+        )
     )
     if exists:
         raise HTTPException(
@@ -80,6 +94,7 @@ async def add_to_favorite(
         authors=", ".join(results.get("authors") or []),
         cover_url=results.get("cover_url"),
         year=results.get("year"),
+        user_id=current_user.id,
     )
 
     db.add(favorite)
@@ -92,20 +107,33 @@ async def add_to_favorite(
 @router.delete("/{olid_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def remove_from_favorite(
     olid_id: str,
+    current_user: UserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_db),
 ) -> None:
     """
     Removes a book from the favorites list by its OLID
     """
 
+    # Check if the book exists in the current user's favorites
     favorite = await db.scalar(
-        select(FavoriteModel).where(FavoriteModel.work_olid == olid_id)
+        select(FavoriteModel)
+        .where(FavoriteModel.work_olid == olid_id,
+               FavoriteModel.user_id == current_user.id)
     )
+
     if not favorite:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="This book is not in favorites",
         )
 
-    await db.execute(delete(FavoriteModel).where(FavoriteModel.work_olid == olid_id))
+    # Remove the book from favorites only for the current user
+    await db.execute(
+        delete(FavoriteModel)
+        .where(
+            FavoriteModel.work_olid == olid_id,
+            FavoriteModel.user_id == current_user.id
+        )
+    )
+
     await db.commit()

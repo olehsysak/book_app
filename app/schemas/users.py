@@ -20,3 +20,10 @@ class User(BaseModel):
     is_active: bool = Field(description="Is active?")
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class RefreshTokenRequest(BaseModel):
+    """
+    Schema for sending a refresh token to obtain new JWT tokens
+    """
+    refresh_token: str = Field(description="Refresh token")
