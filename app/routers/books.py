@@ -1,6 +1,17 @@
-from fastapi import APIRouter, Request, Query, HTTPException, status
+from fastapi import APIRouter, Request, Query, HTTPException, status, Depends
 
 from app.schemas.books import Book as BookSchema, BooksSearchItem, BooksSearchList
+from app.schemas.reviews import Review as ReviewSchema, ReviewCreate, ReviewList
+from app.models.reviews import Review as ReviewModel
+from app.models.users import User as UserModel
+
+from sqlalchemy import select, func
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.depends import get_async_db
+
+from app.auth import get_current_user
+
+
 
 router = APIRouter(
     prefix="/books",
@@ -81,7 +92,7 @@ async def search_books(
     )
 
 
-@router.get("/{edition_id}", response_model=BookSchema)
+@router.get("/{edition_olid}", response_model=BookSchema)
 async def get_book_by_edition(edition_id: str, request: Request):
     """
     Returns detailed book information by edition OLID
@@ -93,3 +104,85 @@ async def get_book_by_edition(edition_id: str, request: Request):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="This book not found")
 
     return BookSchema(**book_data)
+
+
+@router.post("{work_olid}/reviews", response_model=ReviewSchema, status_code=status.HTTP_201_CREATED)
+async def create_review(
+        work_olid: str,
+        review: ReviewCreate,
+        db: AsyncSession = Depends(get_async_db),
+        current_user: UserModel = Depends(get_current_user),
+        request: Request = None,
+):
+    """
+    Creates new review
+    """
+
+    # Check if the book exists via Open Library
+    service = request.app.state.open_library_service
+    book_data = await service.get_book_by_work(work_olid)
+
+    if not book_data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
+
+    # Check if the user has already left a review
+    existing_review = await db.scalar(
+        select(ReviewModel)
+        .where(ReviewModel.user_id == current_user.id,
+               ReviewModel.work_olid == work_olid
+               )
+    )
+
+    if existing_review:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You have already reviewed this book"
+        )
+
+    new_review = ReviewModel(
+        work_olid=work_olid,
+        user_id=current_user.id,
+        rating=review.rating,
+        comment=review.comment
+    )
+
+    db.add(new_review)
+    await db.commit()
+    await db.refresh(new_review)
+
+    return new_review
+
+
+@router.get("/{work_olid}/reviews", response_model=ReviewList)
+async def get_review_list(
+        work_olid: str,
+        db: AsyncSession = Depends(get_async_db),
+        request: Request = None,
+):
+    """
+    Returns review list
+    """
+
+    service = request.app.state.open_library_service
+    book_data = await service.get_book_by_work(work_olid)
+
+    if not book_data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
+
+    result = await db.execute(
+        select(ReviewModel)
+        .where(ReviewModel.work_olid == work_olid)
+    )
+    reviews = result.scalars().all()
+
+    if not reviews:
+        avg_rating = 0.0
+    else:
+        avg_rating = await db.scalar(
+            select(func.avg(ReviewModel.rating)).where(ReviewModel.work_olid == work_olid)
+        )
+
+    return ReviewList(
+        avg_rating=avg_rating,
+        reviews=reviews
+    )

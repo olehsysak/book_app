@@ -1,4 +1,4 @@
-from sqlalchemy import Integer, String,Text ,DateTime, ForeignKey, func, UniqueConstraint, CheckConstraint
+from sqlalchemy import Integer, String, Text, DateTime, Float, ForeignKey, func, UniqueConstraint, CheckConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import datetime
 
@@ -21,7 +21,7 @@ class Review(Base):
     comment: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), onupdate=func.now())
-    rating: Mapped[int] = mapped_column(Integer, nullable=False)
+    rating: Mapped[float] = mapped_column(Float, nullable=False)
 
     # Foreign key
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)

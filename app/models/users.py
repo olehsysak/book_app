@@ -31,6 +31,6 @@ class User(Base):
     favorites: Mapped[list["Favorite"]] = relationship(
         "Favorite", back_populates="user", cascade="all, delete-orphan"
     )
-    users: Mapped[list["Review"]] = relationship(
+    reviews: Mapped[list["Review"]] = relationship(
         "Review", back_populates="user", cascade="all, delete-orphan"
     )

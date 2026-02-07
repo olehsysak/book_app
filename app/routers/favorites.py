@@ -52,7 +52,7 @@ async def get_favorites(
     )
 
 
-@router.post("/{olid_id}", response_model=FavoriteSchema, status_code=status.HTTP_201_CREATED)
+@router.post("/{work_olid}", response_model=FavoriteSchema, status_code=status.HTTP_201_CREATED)
 async def add_to_favorite(
     olid_id: str,
     request: Request,
@@ -104,7 +104,7 @@ async def add_to_favorite(
     return favorite
 
 
-@router.delete("/{olid_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{work_olid}", status_code=status.HTTP_204_NO_CONTENT)
 async def remove_from_favorite(
     olid_id: str,
     current_user: UserModel = Depends(get_current_user),
