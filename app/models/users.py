@@ -6,8 +6,10 @@ from app.database import Base
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+
 if TYPE_CHECKING:
     from app.models.favorites import Favorite
+    from app.models.reviews import Review
 
 
 class User(Base):
@@ -28,4 +30,7 @@ class User(Base):
     # relationship
     favorites: Mapped[list["Favorite"]] = relationship(
         "Favorite", back_populates="user", cascade="all, delete-orphan"
+    )
+    users: Mapped[list["Review"]] = relationship(
+        "Review", back_populates="user", cascade="all, delete-orphan"
     )

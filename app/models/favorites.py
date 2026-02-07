@@ -30,7 +30,7 @@ class Favorite(Base):
     # Relationship
     user: Mapped["User"] = relationship("User", back_populates="favorites")
 
-    # Constraint
+    # Constraints
     __table_args__ = (
         UniqueConstraint("work_olid", "user_id", name="uq_favorite_work_user"),
     )
