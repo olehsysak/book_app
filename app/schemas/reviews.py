@@ -9,6 +9,14 @@ class ReviewCreate(BaseModel):
     comment: str | None = Field(None, description="Review Comment")
 
 
+class ReviewUpdate(BaseModel):
+    """
+    Schema for updating a review (partial update)
+    """
+    rating: float | None = Field(None, ge=1.0, le=5.0, description="Review rating from 1 to 5")
+    comment: str | None = Field(None, description="Review Comment")
+
+
 class Review(BaseModel):
     """
     Schema for returning a review

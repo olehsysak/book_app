@@ -2,7 +2,7 @@ from fastapi import FastAPI
 import uvicorn
 import httpx
 
-from app.routers import books, favorites, users
+from app.routers import books, favorites, users, reviews
 from app.services.open_library import OpenLibraryService
 
 from contextlib import asynccontextmanager
@@ -30,6 +30,7 @@ app = FastAPI(
 app.include_router(books.router)
 app.include_router(favorites.router)
 app.include_router(users.router)
+app.include_router(reviews.router)
 
 
 # root endpoint
