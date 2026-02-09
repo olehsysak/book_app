@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from app.models.favorites import Favorite
     from app.models.reviews import Review
+    from app.models.bookshelves import BookShelf
 
 
 class User(Base):
@@ -33,4 +34,7 @@ class User(Base):
     )
     reviews: Mapped[list["Review"]] = relationship(
         "Review", back_populates="user", cascade="all, delete-orphan"
+    )
+    bookshelves: Mapped[list["BookShelf"]] = relationship(
+        "BookShelf", back_populates="user", cascade="all, delete-orphan"
     )
