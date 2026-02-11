@@ -32,7 +32,7 @@ app.include_router(favorites.router)
 app.include_router(users.router)
 app.include_router(reviews.router)
 app.include_router(bookshelves.router)
-app.include_router(admins.router)
+app.include_router(admin.router)
 
 
 # root endpoint
