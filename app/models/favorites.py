@@ -7,30 +7,21 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from app.models.users import User
+    from app.models.books import Book
 
 
 class Favorite(Base):
-    """
-    Represents a favorite book saved by the user
-    """
     __tablename__ = 'favorites'
 
-    # Fields
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    work_olid: Mapped[str] = mapped_column(String, nullable=False)
-    title: Mapped[str | None] = mapped_column(String, nullable=True)
-    authors: Mapped[str | None] = mapped_column(String, nullable=True)
-    cover_url: Mapped[str | None] = mapped_column(String, nullable=True)
-    year: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    work_olid: Mapped[str] = mapped_column(String, ForeignKey("books.work_olid"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-
-    # Foreign key
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
 
-    # Relationship
+    # Relationships
     user: Mapped["User"] = relationship("User", back_populates="favorites")
+    book: Mapped["Book"] = relationship("Book", primaryjoin="Favorite.work_olid == Book.work_olid", back_populates="favorites", uselist=False, lazy="joined")
 
-    # Constraints
     __table_args__ = (
         UniqueConstraint("work_olid", "user_id", name="uq_favorite_work_user"),
     )

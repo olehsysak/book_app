@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,14 +7,11 @@ from app.depends import get_async_db
 from app.models.bookshelves import BookShelf as BookShelfModel
 from app.models.books_in_shelf import BookInShelf as BookInShelfModel
 from app.models.users import User as UserModel
+from app.models.books import Book as BookModel
 
 from app.schemas.bookshelves import BookShelf as BookShelfSchema, BookShelfCreate, BookShelfList, BookShelfUpdate
 from app.schemas.books_in_shelf import BookInShelf as BookInShelfSchema, BookAdd
 from app.auth import get_current_user
-
-import httpx
-import asyncio
-from app.services.open_library import OpenLibraryService, BASE_URL
 
 
 router = APIRouter(
@@ -157,14 +154,15 @@ async def add_book_in_shelf(
 @router.get("/{bookshelf_id}", response_model=BookShelfList)
 async def get_bookshelf(
         bookshelf_id: int,
+        request: Request,
         db: AsyncSession = Depends(get_async_db),
         current_user: UserModel = Depends(get_current_user)
 ):
     """
-    Get a specific bookshelf along with full details of all books in it
+    Get a specific bookshelf along with full details of all books in it.
     """
 
-    # Get a specific bookshelf from the database for the current user
+    # Get the bookshelf
     result = await db.execute(
         select(BookShelfModel)
         .where(BookShelfModel.id == bookshelf_id,
@@ -179,20 +177,41 @@ async def get_bookshelf(
             detail="Bookshelf not found"
         )
 
-    # Fetch full information about books via Open Library
+    service = request.app.state.open_library_service
     books_full = []
-    async with httpx.AsyncClient(base_url=BASE_URL) as client:
-        ol_service = OpenLibraryService(client)
-        # Use asyncio.gather for parallel requests
-        books_full = await asyncio.gather(*[
-            ol_service.get_book_by_work(book.work_olid)
-            for book in bookshelf.books
-        ])
 
-    # Add local database data to each book object
-    for i, book in enumerate(books_full):
-        book["id"] = bookshelf.books[i].id
-        book["added_at"] = bookshelf.books[i].added_at
+    for book_in_shelf in bookshelf.books:
+        # Try to get the book from local books table
+        book = await db.scalar(
+            select(BookModel).where(BookModel.work_olid == book_in_shelf.work_olid)
+        )
+
+        # If not found locally, fetch from Open Library
+        if not book:
+            book_data = await service.get_book_by_work(book_in_shelf.work_olid)
+            if book_data:
+                book = BookModel(
+                    work_olid=book_in_shelf.work_olid,
+                    title=book_data.get("title"),
+                    authors=", ".join(book_data.get("authors") or []),
+                    cover_url=book_data.get("cover_url"),
+                    published_year=book_data.get("year"),
+                )
+                db.add(book)
+                await db.commit()
+                await db.refresh(book)
+
+        books_full.append(
+            BookInShelfSchema(
+                id=book_in_shelf.id,
+                work_olid=book_in_shelf.work_olid,
+                title=book.title if book else None,
+                authors=book.authors.split(", ") if book and book.authors else [],
+                year=book.published_year if book else None,
+                cover_url=book.cover_url if book else None,
+                added_at=book_in_shelf.added_at,
+            )
+        )
 
     return BookShelfList(
         id=bookshelf.id,

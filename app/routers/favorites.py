@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.depends import get_async_db
 from app.models.favorites import Favorite as FavoriteModel
 from app.models.users import User as UserModel
+from app.models.books import Book as BookModel
 
 from app.schemas.favorites import Favorite as FavoriteSchema, FavoriteList
 from app.auth import get_current_user
@@ -18,16 +19,16 @@ router = APIRouter(
 
 @router.get("/", response_model=FavoriteList)
 async def get_favorites(
+    request: Request,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     current_user: UserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_db),
 ) -> FavoriteList:
     """
-      Returns a paginated list of favorite books with detailed information
-      """
+    Returns a paginated list of favorite books with detailed information.
+    """
 
-    # Count total number of books for this user
     total = await db.scalar(
         select(func.count())
         .select_from(FavoriteModel)
@@ -35,6 +36,7 @@ async def get_favorites(
     )
     offset = (page - 1) * page_size
 
+    # Retrieve the current user's favorite records from the database
     result = await db.execute(
         select(FavoriteModel)
         .where(FavoriteModel.user_id == current_user.id)
@@ -43,9 +45,44 @@ async def get_favorites(
     )
     favorites = result.scalars().all()
 
-    # Create response as a FavoriteList
+    items = []
+    service = request.app.state.open_library_service
+
+    # Check if the book exists in the local books table
+    for fav in favorites:
+        book = await db.scalar(
+            select(BookModel).where(BookModel.work_olid == fav.work_olid)
+        )
+
+    # If not, fetch the book data from Open Library
+        if not book:
+            book_data = await service.get_book_by_work(fav.work_olid)
+            if book_data:
+                book = BookModel(
+                    work_olid=fav.work_olid,
+                    title=book_data.get("title"),
+                    authors=", ".join(book_data.get("authors") or []),
+                    cover_url=book_data.get("cover_url"),
+                    published_year=book_data.get("year"),
+                )
+                db.add(book)
+                await db.commit()
+                await db.refresh(book)
+
+        items.append(
+            FavoriteSchema(
+                id=fav.id,
+                work_olid=fav.work_olid,
+                title=book.title if book else None,
+                authors=book.authors.split(", ") if book and book.authors else None,
+                year=book.published_year if book else None,
+                cover_url=book.cover_url if book else None,
+                created_at=fav.created_at,
+            )
+        )
+
     return FavoriteList(
-        items=favorites,
+        items=items,
         total=total,
         page=page,
         page_size=page_size,
@@ -54,54 +91,73 @@ async def get_favorites(
 
 @router.post("/{work_olid}", response_model=FavoriteSchema, status_code=status.HTTP_201_CREATED)
 async def add_to_favorite(
-    olid_id: str,
+    work_olid: str,
     request: Request,
     current_user: UserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_db),
 ) -> FavoriteSchema:
     """
-       Adds a book to the favorites list by its OLID
-       Fetches book data from OpenLibraryService and saves it to the database
-       Returns the created favorite book
-       """
-
-    # Fetch book data by olid_id via OpenLibraryService
+    Adds a book to the favorites list by its OLID.
+    """
     service = request.app.state.open_library_service
-    results = await service.get_book_by_work(olid_id)
-
-    if not results:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="This book not found",
-        )
 
     # Check if the book is already in favorites
     exists = await db.scalar(
         select(FavoriteModel).where(
-            FavoriteModel.work_olid == olid_id,
+            FavoriteModel.work_olid == work_olid,
             FavoriteModel.user_id == current_user.id
         )
     )
     if exists:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="This book already exists",
+            detail="This book is already in favorites",
         )
 
+    # Check if the book exists in `books`, if not fetch from Open Library
+    book = await db.scalar(select(BookModel).where(BookModel.work_olid == work_olid))
+    if not book:
+        book_data = await service.get_book_by_work(work_olid)
+        if not book_data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Book not found in Open Library",
+            )
+
+        # Save book to books
+        book = BookModel(
+            work_olid=work_olid,
+            title=book_data.get("title"),
+            authors=", ".join(book_data.get("authors") or []),
+            cover_url=book_data.get("cover_url"),
+            published_year=book_data.get("year"),
+        )
+
+        db.add(book)
+        await db.commit()
+        await db.refresh(book)
+
+    # Add to favorites
     favorite = FavoriteModel(
-        work_olid=olid_id,
-        title=results.get("title"),
-        authors=", ".join(results.get("authors") or []),
-        cover_url=results.get("cover_url"),
-        year=results.get("year"),
+        work_olid=work_olid,
         user_id=current_user.id,
     )
-
+    
     db.add(favorite)
     await db.commit()
     await db.refresh(favorite)
 
-    return favorite
+    authors_list = book.authors.split(", ") if book.authors else None
+
+    return FavoriteSchema(
+        id=favorite.id,
+        work_olid=book.work_olid,
+        title=book.title,
+        authors=authors_list,
+        year=book.published_year,
+        cover_url=book.cover_url,
+        created_at=favorite.created_at,
+    )
 
 
 @router.delete("/{work_olid}", status_code=status.HTTP_204_NO_CONTENT)
