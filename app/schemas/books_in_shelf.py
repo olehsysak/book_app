@@ -4,7 +4,7 @@ from datetime import datetime
 
 class BookInShelf(BaseModel):
     """
-    Full information about a book in a bookshelf
+    Full information about a book in a bookshelf.
     """
     id: int = Field(..., description="Book ID in the shelf")
     work_olid: str = Field(..., description="Open Library work OLID of the book")
@@ -19,7 +19,7 @@ class BookInShelf(BaseModel):
 
 class BookAdd(BaseModel):
     """
-    Schema for adding a book to a bookshelf
+    Schema for adding a book to a bookshelf.
     """
     work_olid: str = Field(..., description="Open Library work OLID of the book")
 

@@ -1,11 +1,11 @@
-from fastapi import FastAPI
-import uvicorn
+from contextlib import asynccontextmanager
+
 import httpx
+import uvicorn
+from fastapi import FastAPI
 
 from app.routers import users, books, reviews, favorites, bookshelves, user_books
 from app.services.open_library import OpenLibraryService
-
-from contextlib import asynccontextmanager
 
 
 @asynccontextmanager
@@ -20,8 +20,18 @@ async def lifespan(app: FastAPI):
 
 # Connecting lifespan to FastAPI
 app = FastAPI(
-    title="FastAPI Library",
+    title="Library Hub",
     version="0.1.0",
+    description=(
+        "The Library Hub API is an API for managing books.\n"
+        "It allows users to:\n"
+        "- Search for books and view detailed information about specific books\n"
+        "- Add and view reviews for books\n"
+        "- Mark books as favorites\n\n"
+        "- Add, edit, and delete books on their own bookshelves\n"
+        "- Set and update the reading status of books\n"
+        "- The API integrates with Open Library to fetch book metadata."
+    ),
     lifespan=lifespan
 )
 
@@ -38,7 +48,7 @@ app.include_router(user_books.router)
 # root endpoint
 @app.get("/")
 async def root():
-    return {"message": "Welcome to the Library API"}
+    return {"status": "ok"}
 
 
 if __name__ == '__main__':

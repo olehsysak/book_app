@@ -1,9 +1,11 @@
 from sqlalchemy import Integer, String, DateTime, func, UniqueConstraint, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from datetime import datetime
 
 from app.database import Base
+
+from datetime import datetime
 from typing import TYPE_CHECKING
+
 
 if TYPE_CHECKING:
     from app.models.users import User
@@ -11,16 +13,26 @@ if TYPE_CHECKING:
 
 
 class Favorite(Base):
+    """
+    Represents a user's favorite book
+    """
     __tablename__ = 'favorites'
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    work_olid: Mapped[str] = mapped_column(String, ForeignKey("books.work_olid"), nullable=False)
+    work_olid: Mapped[str] = mapped_column(String(50), ForeignKey("books.work_olid"), nullable=False, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    # Foreign key
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
 
     # Relationships
     user: Mapped["User"] = relationship("User", back_populates="favorites")
-    book: Mapped["Book"] = relationship("Book", primaryjoin="Favorite.work_olid == Book.work_olid", back_populates="favorites", uselist=False, lazy="joined")
+    book: Mapped["Book"] = relationship(
+        "Book",
+        back_populates="favorites",
+        uselist=False,
+        lazy="joined"
+    )
 
     __table_args__ = (
         UniqueConstraint("work_olid", "user_id", name="uq_favorite_work_user"),

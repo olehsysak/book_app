@@ -1,8 +1,9 @@
 from sqlalchemy import Integer, String, DateTime, ForeignKey, func, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from datetime import datetime
 
 from app.database import Base
+
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 
@@ -12,7 +13,7 @@ if TYPE_CHECKING:
 
 class BookInShelf(Base):
     """
-    Books added to users' bookshelves
+    Books added to users' bookshelves.
     """
     __tablename__ = "books_in_shelf"
 
@@ -22,7 +23,11 @@ class BookInShelf(Base):
     added_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     # Foreign key
-    bookshelf_id: Mapped[int] = mapped_column(Integer, ForeignKey("bookshelf.id", ondelete="CASCADE"), nullable=False)
+    bookshelf_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("bookshelf.id", ondelete="CASCADE"),
+        nullable=False
+    )
 
     # Relationship
     bookshelf: Mapped["BookShelf"] = relationship("BookShelf", back_populates="books")

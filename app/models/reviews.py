@@ -1,9 +1,11 @@
 from sqlalchemy import Integer, String, Text, DateTime, Float, ForeignKey, func, UniqueConstraint, CheckConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from datetime import datetime
 
 from app.database import Base
+
+from datetime import datetime
 from typing import TYPE_CHECKING
+
 
 if TYPE_CHECKING:
     from app.models.users import User
@@ -11,13 +13,13 @@ if TYPE_CHECKING:
 
 class Review(Base):
     """
-    Represents a review saved by the user
+    Represents a review saved by the user.
     """
     __tablename__ = 'reviews'
 
     # Fields
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    work_olid: Mapped[str] = mapped_column(String, nullable=False)
+    work_olid: Mapped[str] = mapped_column(String(50), nullable=False)
     comment: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), onupdate=func.now())

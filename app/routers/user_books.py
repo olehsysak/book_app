@@ -20,14 +20,18 @@ router = APIRouter(
 )
 
 
-@router.post("/", response_model=UserBookSchema, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=UserBookSchema, status_code=status.HTTP_201_CREATED, summary="Add a book to user's reading list")
 async def add_user_book(
         book_data: UserBookAdd,
         db: AsyncSession = Depends(get_async_db),
         current_user: UserModel = Depends(get_current_user),
 ):
     """
-    Add a book to the user's personal reading list
+    Add a book to the current user's personal reading list.
+
+    - If the book does not exist locally, it will be fetched from OpenLibrary
+    - Default status is `PLANNED`
+    - Progress and rating can be set during creation
     """
 
     # Check if already in user's list
@@ -96,7 +100,7 @@ async def add_user_book(
 
 
 
-@router.get("/", response_model=list[UserBookSchema])
+@router.get("/", response_model=list[UserBookSchema], summary="Get user's reading list",)
 async def get_user_books(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
@@ -105,7 +109,11 @@ async def get_user_books(
     current_user: UserModel = Depends(get_current_user),
 ):
     """
-    Get the user's personal reading list with optional status filter and pagination
+    Retrieve the current user's personal reading list.
+
+    - Optional filtering by `status` (PLANNED, READING, COMPLETED)
+    - Pagination supported via `page` and `page_size`
+    - Returns full book details (title, authors, cover, year) along with user progress and rating
     """
 
     offset = (page - 1) * page_size
@@ -148,7 +156,7 @@ async def get_user_books(
     return books_full
 
 
-@router.patch("/{user_book_id}", response_model=UserBookSchema)
+@router.patch("/{user_book_id}", response_model=UserBookSchema, summary="Update a book in user's reading list")
 async def update_user_book(
     user_book_id: int,
     book_update: UserBookUpdate,
@@ -157,6 +165,10 @@ async def update_user_book(
 ):
     """
     Partially update a book in the user's reading list.
+
+    - Update `status`, `progress_percent`, and/or `rating`
+    - Automatically sets `started_at` when status becomes READING
+    - Automatically sets `finished_at` and `progress_percent=100` when status becomes COMPLETED or progress reaches 100%
     """
 
     user_book = await db.scalar(
@@ -224,14 +236,14 @@ async def update_user_book(
     )
 
 
-@router.delete("/{user_book_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{user_book_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Remove a book from user's reading list")
 async def delete_user_book(
     user_book_id: int,
     db: AsyncSession = Depends(get_async_db),
     current_user: UserModel = Depends(get_current_user),
 ):
     """
-    Remove a book from the user's reading list.
+    Delete a book from the current user's personal reading list.
     """
 
     user_book = await db.scalar(

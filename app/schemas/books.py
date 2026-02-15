@@ -1,10 +1,11 @@
 from pydantic import BaseModel, Field, ConfigDict
 
+
 class Book(BaseModel):
     """
-    Detailed book information
+    Detailed book information returned by book endpoints.
     """
-    work_olid: str = Field(..., description="Work OLID")  # new
+    work_olid: str = Field(..., description="Work OLID")
     title: str | None = Field(None, description="Book title")
     authors: list[str] | None = Field(None, description="Authors names")
     description: str | None = Field(None, description="Book description")
@@ -21,9 +22,9 @@ class Book(BaseModel):
 
 class BooksSearchItem(BaseModel):
     """
-    Short book information for search results
+    Short book information for search results.
     """
-    work_olid: str = Field(..., description="Book ID (work_olid) – fetch details on click.")  # new
+    work_olid: str = Field(..., description="Work OLID")
     title: str | None = Field(None, description="Book title")
     authors: list[str] | None = Field(None, description="Authors names")
     year: int | None = Field(None, description="First published year")
@@ -34,7 +35,8 @@ class BooksSearchItem(BaseModel):
 
 class BooksSearchList(BaseModel):
     """
-    Paginated list of books returned from a search
+    Paginated list of books returned from a search endpoint.
+    Includes items for the current page and pagination metadata.
     """
     items: list[BooksSearchItem] = Field(description="Book for current page")
     total: int = Field(ge=0, description="Total number of books")

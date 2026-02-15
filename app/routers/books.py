@@ -19,7 +19,7 @@ router = APIRouter(
 )
 
 
-@router.get("/search", response_model=BooksSearchList)
+@router.get("/search", response_model=BooksSearchList, summary="Search books with filters")
 async def search_books(
     request: Request,
     page: int = Query(1, ge=1),
@@ -32,7 +32,10 @@ async def search_books(
     publisher: str | None = Query(None, description="Book publisher"),
 ):
     """
-    Returns a list of books based on specified filters with pagination support
+    Returns a list of books based on specified filters with pagination support.
+
+    - You can filter by **title**, **author**, **year**, **subject**, **ISBN**, or **publisher**
+    - Pagination is controlled via `page` and `page_size`
     """
     service = request.app.state.open_library_service
 
@@ -92,10 +95,16 @@ async def search_books(
     )
 
 
-@router.get("/{edition_olid}", response_model=BookSchema)
-async def get_book_by_edition(edition_id: str, request: Request):
+@router.get("/{edition_olid}", response_model=BookSchema, summary="Get detailed book information by edition OLID")
+async def get_book_by_edition(
+        edition_id: str,
+        request: Request
+):
     """
-    Returns detailed book information by edition OLID
+    Retrieve detailed information for a specific book edition.
+
+    - `edition_olid` should be the Open Library Edition OLID
+    - Returns full details including title, authors, description, year, ISBN, pages, subjects, languages, publisher, and cover URL
     """
     service = request.app.state.open_library_service
     book_data = await service.get_book_by_edition(edition_id)
@@ -106,7 +115,7 @@ async def get_book_by_edition(edition_id: str, request: Request):
     return BookSchema(**book_data)
 
 
-@router.post("{work_olid}/reviews", response_model=ReviewSchema, status_code=status.HTTP_201_CREATED)
+@router.post("{work_olid}/reviews", response_model=ReviewSchema, status_code=status.HTTP_201_CREATED, summary="Create a review for a book")
 async def create_review(
         work_olid: str,
         review: ReviewCreate,
@@ -115,10 +124,14 @@ async def create_review(
         request: Request = None,
 ):
     """
-    Creates new review
+    Create a new review for a book identified by its Work OLID.
+
+    - Only registered users can create reviews
+    - A user can only leave one review per book
+    - `rating` must be between 1 and 5
+    - Returns the created review with rating and comment
     """
 
-    # Check if the book exists via Open Library
     service = request.app.state.open_library_service
     book_data = await service.get_book_by_work(work_olid)
 
@@ -153,14 +166,14 @@ async def create_review(
     return new_review
 
 
-@router.get("/{work_olid}/reviews", response_model=ReviewList)
+@router.get("/{work_olid}/reviews", response_model=ReviewList, summary="Get reviews for a book")
 async def get_review_list(
         work_olid: str,
         db: AsyncSession = Depends(get_async_db),
         request: Request = None,
 ):
     """
-    Returns review list
+    Retrieve a list of reviews for a specific book identified by Work OLID.
     """
 
     service = request.app.state.open_library_service

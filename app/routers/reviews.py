@@ -17,7 +17,7 @@ router = APIRouter(
 )
 
 
-@router.patch("/{review_id}", response_model=ReviewSchema)
+@router.patch("/{review_id}", response_model=ReviewSchema, summary="Update a review")
 async def patch_review(
     review_id: int,
     review: ReviewUpdate,
@@ -25,7 +25,7 @@ async def patch_review(
     current_user: UserModel = Depends(get_current_user),
 ):
     """
-    Update a review:
+    Update a review.
     - Owner can update their own review
     - Admin can update any review
     """
@@ -66,14 +66,14 @@ async def patch_review(
     return review_db
 
 
-@router.delete("/{review_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{review_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete a review")
 async def delete_review(
     review_id: int,
     db: AsyncSession = Depends(get_async_db),
     current_user: UserModel = Depends(get_current_user),
 ):
     """
-    Delete a review:
+    Delete a review.
     - Owner can delete their own review
     - Admin can delete any review
     """

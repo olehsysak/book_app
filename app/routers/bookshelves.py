@@ -20,14 +20,17 @@ router = APIRouter(
 )
 
 
-@router.post("/", response_model=BookShelfSchema, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=BookShelfSchema, status_code=status.HTTP_201_CREATED, summary="Create a new bookshelf")
 async def create_bookshelf(
         bookshelf_data: BookShelfCreate,
         db: AsyncSession = Depends(get_async_db),
         current_user: UserModel = Depends(get_current_user)
 ):
     """
-    Create a new bookshelf for the current user
+    Create a new bookshelf for the current user.
+
+    - `name`: Name of the bookshelf (must be unique for the user)
+    - `description`: Optional description
     """
 
     # Check if a list with the same name already exists for the user
@@ -65,13 +68,13 @@ async def create_bookshelf(
     )
 
 
-@router.get("/", response_model=list[BookShelfSchema])
+@router.get("/", response_model=list[BookShelfSchema], summary="Get all bookshelves of the current user")
 async def get_bookshelves(
         db: AsyncSession = Depends(get_async_db),
         current_user: UserModel = Depends(get_current_user)
 ):
     """
-    Get all bookshelves of the current user
+    Retrieve all bookshelves belonging to the current user.
     """
 
     result = await db.execute(
@@ -94,64 +97,7 @@ async def get_bookshelves(
     ]
 
 
-@router.post("/{bookshelf_id}/books", response_model=BookInShelfSchema, status_code=status.HTTP_201_CREATED)
-async def add_book_in_shelf(
-        bookshelf_id: int,
-        book_data: BookAdd,
-        db: AsyncSession = Depends(get_async_db),
-        current_user: UserModel = Depends(get_current_user)
-):
-    """
-    Add a book to a user's bookshelf
-    """
-
-    # Check that bookshelf exists and belongs to current user
-    result = await db.execute(
-        select(BookShelfModel).where(
-            BookShelfModel.id == bookshelf_id,
-            BookShelfModel.user_id == current_user.id,
-        )
-    )
-    bookshelf = result.scalars().first()
-
-    if not bookshelf:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Bookshelf not found"
-        )
-
-    # Check if the book is already in the bookshelf
-    result = await db.execute(
-        select(BookInShelfModel).where(
-            BookInShelfModel.bookshelf_id == bookshelf.id,
-            BookInShelfModel.work_olid == book_data.work_olid,
-        )
-    )
-    existing_book = result.scalars().first()
-
-    if existing_book:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="This book is already in the bookshelf"
-        )
-
-    book_in_shelf = BookInShelfModel(
-        bookshelf_id=bookshelf.id,
-        work_olid=book_data.work_olid,
-    )
-
-    db.add(book_in_shelf)
-    await db.commit()
-    await db.refresh(book_in_shelf)
-
-    return BookInShelfSchema(
-        id=book_in_shelf.id,
-        work_olid=book_in_shelf.work_olid,
-        added_at=book_in_shelf.added_at
-    )
-
-
-@router.get("/{bookshelf_id}", response_model=BookShelfList)
+@router.get("/{bookshelf_id}", response_model=BookShelfList, summary="Get a specific bookshelf with full book details")
 async def get_bookshelf(
         bookshelf_id: int,
         request: Request,
@@ -159,7 +105,9 @@ async def get_bookshelf(
         current_user: UserModel = Depends(get_current_user)
 ):
     """
-    Get a specific bookshelf along with full details of all books in it.
+     Retrieve a specific bookshelf by its ID, including all books it contains.
+
+    - Returns full book details: title, authors, year, cover URL, and date added to the shelf
     """
 
     # Get the bookshelf
@@ -222,7 +170,67 @@ async def get_bookshelf(
     )
 
 
-@router.patch("/{bookshelf_id}", response_model=BookShelfSchema)
+@router.post("/{bookshelf_id}/books", response_model=BookInShelfSchema, status_code=status.HTTP_201_CREATED, summary="Add a book to a bookshelf")
+async def add_book_in_shelf(
+        bookshelf_id: int,
+        book_data: BookAdd,
+        db: AsyncSession = Depends(get_async_db),
+        current_user: UserModel = Depends(get_current_user)
+):
+    """
+    Add a book to a user's bookshelf.
+
+    - `work_olid`: Open Library Work OLID of the book
+    - Returns the book added to the shelf with ID and added timestamp
+    """
+
+    # Check that bookshelf exists and belongs to current user
+    result = await db.execute(
+        select(BookShelfModel).where(
+            BookShelfModel.id == bookshelf_id,
+            BookShelfModel.user_id == current_user.id,
+        )
+    )
+    bookshelf = result.scalars().first()
+
+    if not bookshelf:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Bookshelf not found"
+        )
+
+    # Check if the book is already in the bookshelf
+    result = await db.execute(
+        select(BookInShelfModel).where(
+            BookInShelfModel.bookshelf_id == bookshelf.id,
+            BookInShelfModel.work_olid == book_data.work_olid,
+        )
+    )
+    existing_book = result.scalars().first()
+
+    if existing_book:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This book is already in the bookshelf"
+        )
+
+    book_in_shelf = BookInShelfModel(
+        bookshelf_id=bookshelf.id,
+        work_olid=book_data.work_olid,
+    )
+
+    db.add(book_in_shelf)
+    await db.commit()
+    await db.refresh(book_in_shelf)
+
+    return BookInShelfSchema(
+        id=book_in_shelf.id,
+        work_olid=book_in_shelf.work_olid,
+        added_at=book_in_shelf.added_at
+    )
+
+
+@router.patch("/{bookshelf_id}", response_model=BookShelfSchema, summary="Update a bookshelf")
 async def update_bookshelf(
         bookshelf_id: int,
         bookshelf_data: BookShelfUpdate,
@@ -230,7 +238,10 @@ async def update_bookshelf(
         current_user: UserModel = Depends(get_current_user)
 ):
     """
-    Update a specific bookshelf of the current user
+    Update a specific bookshelf of the current user.
+
+    - You can update `name` and/or `description`
+    - Returns the updated bookshelf
     """
 
     result = await db.execute(
@@ -265,14 +276,14 @@ async def update_bookshelf(
     )
 
 
-@router.delete("/{bookshelf_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{bookshelf_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete a bookshelf")
 async def delete_bookshelf(
         bookshelf_id: int,
         db: AsyncSession = Depends(get_async_db),
         current_user: UserModel = Depends(get_current_user)
 ):
     """
-    Delete a specific bookshelf of the current user
+    Delete a specific bookshelf of the current user.
     """
 
     result = await db.execute(
@@ -295,7 +306,7 @@ async def delete_bookshelf(
     return None
 
 
-@router.delete("/{bookshelf_id}/books/{book_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{bookshelf_id}/books/{book_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Remove a book from a bookshelf")
 async def delete_book_from_shelf(
         bookshelf_id: int,
         book_id: int,

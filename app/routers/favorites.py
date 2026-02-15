@@ -17,7 +17,7 @@ router = APIRouter(
 )
 
 
-@router.get("/", response_model=FavoriteList)
+@router.get("/", response_model=FavoriteList, summary="Get paginated list of favorite books")
 async def get_favorites(
     request: Request,
     page: int = Query(1, ge=1),
@@ -26,9 +26,10 @@ async def get_favorites(
     db: AsyncSession = Depends(get_async_db),
 ) -> FavoriteList:
     """
-    Returns a paginated list of favorite books with detailed information.
-    """
+    Returns a paginated list of the current user's favorite books.
 
+    - Fetches book details from local DB or Open Library if missing
+    """
     total = await db.scalar(
         select(func.count())
         .select_from(FavoriteModel)
@@ -89,7 +90,7 @@ async def get_favorites(
     )
 
 
-@router.post("/{work_olid}", response_model=FavoriteSchema, status_code=status.HTTP_201_CREATED)
+@router.post("/{work_olid}", response_model=FavoriteSchema, status_code=status.HTTP_201_CREATED, summary="Add a book to favorites")
 async def add_to_favorite(
     work_olid: str,
     request: Request,
@@ -97,7 +98,10 @@ async def add_to_favorite(
     db: AsyncSession = Depends(get_async_db),
 ) -> FavoriteSchema:
     """
-    Adds a book to the favorites list by its OLID.
+    Adds a book to the current user's favorites list by its OLID.
+
+    - Checks if already in favorites
+    - Fetches book details from local DB or Open Library if missing
     """
     service = request.app.state.open_library_service
 
@@ -160,16 +164,15 @@ async def add_to_favorite(
     )
 
 
-@router.delete("/{work_olid}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{work_olid}", status_code=status.HTTP_204_NO_CONTENT, summary="Remove a book from favorites")
 async def remove_from_favorite(
     olid_id: str,
     current_user: UserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_db),
 ) -> None:
     """
-    Removes a book from the favorites list by its OLID
+    Removes a book from the current user's favorites list by its OLID.
     """
-
     # Check if the book exists in the current user's favorites
     favorite = await db.scalar(
         select(FavoriteModel)

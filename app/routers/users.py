@@ -18,37 +18,41 @@ router = APIRouter(
 )
 
 
-@router.get("/me", response_model=UserSchema)
+@router.get("/me", response_model=UserSchema, summary="Get current user info")
 async def get_me(
     current_user: UserModel = Depends(get_current_user),
 ):
     """
-    Get current user info
+    Returns the information of the currently authenticated user.
     """
     return current_user
 
 
-@router.get("/", response_model=list[UserSchema])
+@router.get("/", response_model=list[UserSchema], summary="Get all users")
 async def get_users(
     admin: UserModel = Depends(get_current_admin),
     db: AsyncSession = Depends(get_async_db),
 ):
     """
-    Get all users
+    Returns a list of all registered users.
+
+    - Only accessible to admins
     """
 
     result = await db.scalars(select(UserModel))
     return result.all()
 
 
-@router.get("/{user_id}", response_model=UserSchema)
+@router.get("/{user_id}", response_model=UserSchema, summary="Get user by ID")
 async def get_user(
     user_id: int,
     admin: UserModel = Depends(get_current_admin),
     db: AsyncSession = Depends(get_async_db),
 ):
     """
-    Get a user
+    Returns the details of a specific user by ID.
+
+    - Only admins can access this endpoint
     """
 
     result = await db.scalars(
@@ -62,7 +66,7 @@ async def get_user(
     return user
 
 
-@router.patch("/{user_id}", response_model=UserSchema)
+@router.patch("/{user_id}", response_model=UserSchema, summary="Update user info")
 async def update_user(
     user_id: int,
     data: UserUpdate,
@@ -70,7 +74,10 @@ async def update_user(
     db: AsyncSession = Depends(get_async_db),
 ):
     """
-    Update a user's info
+    Update information of a user.
+
+    - Users can update only their username
+    - Admins can update username, role, and active status
     """
 
     result = await db.scalars(
@@ -105,14 +112,17 @@ async def update_user(
     return user
 
 
-@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete a user")
 async def delete_user(
     user_id: int,
     current_user: UserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_db),
 ):
     """
-    Delete a user
+    Delete a user by ID.
+
+    - Users can delete themselves
+    - Admins can delete any user
     """
 
     result = await db.scalars(
@@ -135,13 +145,15 @@ async def delete_user(
 
 
 
-@router.post("/", response_model=UserSchema, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=UserSchema, status_code=status.HTTP_201_CREATED, summary="Create a new user")
 async def create_user(
         user: UserCreate,
         db: AsyncSession = Depends(get_async_db)
 ):
     """
-    Create a new user
+    Register a new user with email, username, and password.
+
+    - Role is set to 'user' by default
     """
 
     result = await db.scalar(select(UserModel).where(UserModel.email == user.email))
@@ -166,13 +178,13 @@ async def create_user(
     return db_user
 
 
-@router.post("/token")
+@router.post("/token", summary="User login",)
 async def login(
         form_data: OAuth2PasswordRequestForm = Depends(),
         db: AsyncSession = Depends(get_async_db)
 ):
     """
-    Authenticates user and returns JWT access token
+    Authenticate user and return JWT access and refresh tokens.
     """
 
     result = await db.scalars(
@@ -206,14 +218,13 @@ async def login(
     }
 
 
-@router.post("/refresh-token")
+@router.post("/refresh-token", summary="Refresh JWT token")
 async def refresh_token(
     body: RefreshTokenRequest,
     db: AsyncSession = Depends(get_async_db),
 ):
     """
-    Refreshes the JWT by validating the provided refresh token
-    and returning a new refresh token
+    Send a refresh token to obtain a new JWT access token and refresh token.
     """
 
     credentials_exception = HTTPException(

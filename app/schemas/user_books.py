@@ -1,10 +1,12 @@
 from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
+
 from app.models.user_books import ReadingStatus
+
 
 class UserBookAdd(BaseModel):
     """
-    Schema for adding a book to user_books
+    Schema for adding a book to user_books.
     """
     work_olid: str = Field(..., description="Open Library work OLID of the book")
     status: ReadingStatus = Field(ReadingStatus.PLANNED, description="Status of the book")
@@ -14,7 +16,7 @@ class UserBookAdd(BaseModel):
 
 class UserBookUpdate(BaseModel):
     """
-    Schema for updating a book
+    Schema for updating a book.
     """
     status: ReadingStatus | None = Field(None, description="Status of the book")
     progress_percent: int | None = Field(None, ge=0, le=100)
@@ -23,13 +25,13 @@ class UserBookUpdate(BaseModel):
 
 class UserBook(BaseModel):
     """
-    Returns book information to the user
+    Returns book information to the user.
     """
     id: int = Field(..., description="ID of the book")
     work_olid: str = Field(..., description="Open Library work OLID of the book")
-    status: str = Field(..., description="Reading status of the book")
-    progress_percent: int = Field(..., description="Progress percentage of the book")
-    rating: int | None = Field(None, description="Rating of the book")
+    status: ReadingStatus = Field(..., description="Reading status of the book")
+    progress_percent: int = Field(..., description="Progress percentage of the book", ge=0, le=100)
+    rating: int | None = Field(None, description="Rating of the book", ge=1, le=5)
     started_at: datetime | None = Field(None, description="Date when the book was started")
     finished_at: datetime | None = Field(None, description="Date when the book was finished")
     created_at: datetime = Field(..., description="Date when the book was created")

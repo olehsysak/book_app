@@ -1,10 +1,11 @@
 from sqlalchemy import Integer, String, DateTime, Enum, ForeignKey, func, UniqueConstraint, CheckConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+import enum
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from app.database import Base
-import enum
-from typing import TYPE_CHECKING
 
 
 if TYPE_CHECKING:
@@ -12,6 +13,9 @@ if TYPE_CHECKING:
 
 
 class ReadingStatus(str, enum.Enum):
+    """
+    Enum representing possible reading statuses for a user's book.
+    """
     PLANNED = "planned"
     READING = "reading"
     COMPLETED = "completed"
@@ -20,23 +24,37 @@ class ReadingStatus(str, enum.Enum):
 
 class UserBook(Base):
     """
-    Represents a user's book entry in their personal reading list
+    Represents a user's book entry in their personal reading list.
     """
     __tablename__ = "user_books"
 
     # Fields
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    work_olid: Mapped[str] = mapped_column(String, nullable=False, index=True)
-    status: Mapped[ReadingStatus] = mapped_column(Enum(ReadingStatus, name="reading_status_enum", native_enum=False), default=ReadingStatus.PLANNED, nullable=False)
+    work_olid: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    status: Mapped[ReadingStatus] = mapped_column(
+        Enum(ReadingStatus, name="reading_status_enum", native_enum=False),
+        default=ReadingStatus.PLANNED,
+        nullable=False
+    )
     progress_percent: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    rating: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    rating: Mapped[int | None] = mapped_column(Integer, default=None, nullable=True)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False
+    )
 
     # Foreign key
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
 
     # Relationship
     user: Mapped["User"] = relationship("User", back_populates="user_books")

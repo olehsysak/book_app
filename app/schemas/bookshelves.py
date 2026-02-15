@@ -1,12 +1,12 @@
 from pydantic import BaseModel, Field, ConfigDict
-from datetime import datetime
-
 from app.schemas.books_in_shelf import BookInShelf
+
+from datetime import datetime
 
 
 class BookShelf(BaseModel):
     """
-    Basic information about BookShelf
+    Basic information about BookShelf.
     """
     id: int = Field(..., description="List id")
     name: str = Field(..., description="List name")
@@ -19,7 +19,7 @@ class BookShelf(BaseModel):
 
 class BookShelfCreate(BaseModel):
     """
-    Schema for creating a new BookShelf
+    Schema for creating a new BookShelf.
     """
     name: str = Field(..., description="List name")
     description: str | None = Field(None, description="List description")
@@ -27,7 +27,7 @@ class BookShelfCreate(BaseModel):
 
 class BookShelfUpdate(BaseModel):
     """
-    Schema for updating a bookshelf
+    Schema for updating a bookshelf.
     """
     name: str | None = Field(None, description="List name")
     description: str | None = Field(None, description="List description")
@@ -35,6 +35,6 @@ class BookShelfUpdate(BaseModel):
 
 class BookShelfList(BookShelf):
     """
-    Full list of books in a specific BookShelf
+    Full list of books in a specific BookShelf.
     """
     pass
