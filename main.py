@@ -4,7 +4,7 @@ import httpx
 import uvicorn
 from fastapi import FastAPI
 
-from app.routers import users, books, reviews, favorites, bookshelves, user_books
+from app.routers import auth, users, books, reviews, favorites, bookshelves, user_books
 from app.services.open_library import OpenLibraryService
 
 
@@ -37,6 +37,7 @@ app = FastAPI(
 
 
 # connecting routers
+app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(books.router)
 app.include_router(reviews.router)

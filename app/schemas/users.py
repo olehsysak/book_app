@@ -31,10 +31,3 @@ class UserUpdate(BaseModel):
     username: str | None = Field(None, description="Username of the user")
     role: Literal["user", "admin"] = Field(..., description="Role of the user (user or admin)")
     is_active: bool | None = Field(None, description="Is active?")
-
-
-class RefreshTokenRequest(BaseModel):
-    """
-    Schema for sending a refresh token to obtain new JWT tokens.
-    """
-    refresh_token: str = Field(..., description="Refresh token")
