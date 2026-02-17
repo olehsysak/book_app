@@ -22,16 +22,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Library Hub",
     version="0.1.0",
-    description=(
-        "The Library Hub API is an API for managing books.\n"
-        "It allows users to:\n"
-        "- Search for books and view detailed information about specific books\n"
-        "- Add and view reviews for books\n"
-        "- Mark books as favorites\n\n"
-        "- Add, edit, and delete books on their own bookshelves\n"
-        "- Set and update the reading status of books\n"
-        "- The API integrates with Open Library to fetch book metadata."
-    ),
+    description=("Library Hub is a REST API for managing books, reviews, favorites and personal bookshelves."),
     lifespan=lifespan
 )
 
